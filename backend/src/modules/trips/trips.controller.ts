@@ -11,21 +11,25 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { TripsService } from './trips.service';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 
 @Controller('trips')
-@UseGuards(JwtAuthGuard)
+@UseGuards(OptionalJwtAuthGuard)
 export class TripsController {
   constructor(private readonly tripsService: TripsService) {}
 
   @Get()
   async findAll(@Request() req, @Query('page') page?: number, @Query('limit') limit?: number) {
-    return this.tripsService.findByUser(req.user.id, page, limit);
+    // 第一版：无用户时获取所有行程（本地部署模式）
+    const userId = req.user?.id || null;
+    return this.tripsService.findByUser(userId, page, limit);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req) {
-    return this.tripsService.findOne(id, req.user.id);
+    // 第一版：无用户时不校验权限
+    const userId = req.user?.id || null;
+    return this.tripsService.findOne(id, userId);
   }
 
   @Post()
@@ -37,8 +41,10 @@ export class TripsController {
     @Body('transport') transport: 'driving' | 'public' | 'mixed',
     @Body('spotIds') spotIds?: string[],
   ) {
+    // 第一版：无用户时使用默认用户 ID（本地部署模式）
+    const userId = req.user?.id || 'local-user';
     return this.tripsService.create(
-      req.user.id,
+      userId,
       name,
       new Date(startDate),
       new Date(endDate),
@@ -59,12 +65,14 @@ export class TripsController {
       notes: string;
     }>,
   ) {
-    return this.tripsService.update(id, req.user.id, updateData);
+    const userId = req.user?.id || null;
+    return this.tripsService.update(id, userId, updateData);
   }
 
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req) {
-    return this.tripsService.remove(id, req.user.id);
+    const userId = req.user?.id || null;
+    return this.tripsService.remove(id, userId);
   }
 
   @Post(':id/spots')
@@ -76,9 +84,10 @@ export class TripsController {
     @Body('arriveTime') arriveTime?: string,
     @Body('stayHours') stayHours?: number,
   ) {
+    const userId = req.user?.id || null;
     return this.tripsService.addSpot(
       id,
-      req.user.id,
+      userId,
       spotId,
       arriveDate ? new Date(arriveDate) : undefined,
       arriveTime,
@@ -92,7 +101,8 @@ export class TripsController {
     @Request() req,
     @Body('spotOrder') spotOrder: { tripSpotId: string; order: number }[],
   ) {
-    return this.tripsService.reorderSpots(id, req.user.id, spotOrder);
+    const userId = req.user?.id || null;
+    return this.tripsService.reorderSpots(id, userId, spotOrder);
   }
 
   @Delete(':id/spots/:tripSpotId')
@@ -101,6 +111,7 @@ export class TripsController {
     @Param('tripSpotId') tripSpotId: string,
     @Request() req,
   ) {
-    return this.tripsService.removeSpot(id, req.user.id, tripSpotId);
+    const userId = req.user?.id || null;
+    return this.tripsService.removeSpot(id, userId, tripSpotId);
   }
 }

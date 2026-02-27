@@ -9,7 +9,7 @@ export const api = axios.create({
   },
 });
 
-// 请求拦截器 - 添加 token
+// 请求拦截器 - 添加 token（可选，第一版本地部署不需要）
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -22,9 +22,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // 第一版本地部署模式：401 不再跳转登录页
+    // 后续版本启用用户系统时可恢复此逻辑
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // 不再跳转登录页，第一版无需登录
+      // window.location.href = '/login';
     }
     return Promise.reject(error);
   }

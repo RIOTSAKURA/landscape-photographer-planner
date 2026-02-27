@@ -23,7 +23,7 @@ export const authService = {
   },
 
   async getProfile(): Promise<User> {
-    const response = await api.get<{ id: string; email: string; nickname: string; level: string }>(
+    const response = await api.get<{ id: string; email: string; nickname: string; level: 'beginner' | 'intermediate' | 'professional' }>(
       '/auth/profile'
     );
     return response.data;

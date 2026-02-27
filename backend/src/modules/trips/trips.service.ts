@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { Trip } from '../../entities/trip.entity';
 import { TripSpot } from '../../entities/trip-spot.entity';
 import { Spot } from '../../entities/spot.entity';
@@ -16,9 +16,12 @@ export class TripsService {
     private spotRepository: Repository<Spot>,
   ) {}
 
-  async findByUser(userId: string, page = 1, limit = 10) {
+  async findByUser(userId: string | null, page = 1, limit = 10) {
+    // 第一版本地部署：无用户时获取所有行程
+    const whereCondition = userId ? { userId } : { userId: IsNull() };
+
     const [trips, total] = await this.tripRepository.findAndCount({
-      where: { userId },
+      where: whereCondition,
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -27,7 +30,7 @@ export class TripsService {
     return { trips, total, page, limit };
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(id: string, userId: string | null) {
     const trip = await this.tripRepository.findOne({
       where: { id },
       relations: ['tripSpots', 'tripSpots.spot'],
@@ -37,7 +40,8 @@ export class TripsService {
       throw new NotFoundException('行程不存在');
     }
 
-    if (trip.userId !== userId) {
+    // 第一版本地部署：无用户时不校验权限
+    if (userId && trip.userId !== userId) {
       throw new ForbiddenException('无权访问此行程');
     }
 
@@ -53,7 +57,7 @@ export class TripsService {
     spotIds?: string[],
   ) {
     const trip = this.tripRepository.create({
-      userId,
+      userId: userId === 'local-user' ? null : userId,
       name,
       startDate,
       endDate,
@@ -76,13 +80,13 @@ export class TripsService {
     return this.findOne(trip.id, userId);
   }
 
-  async update(id: string, userId: string, updateData: Partial<Trip>) {
+  async update(id: string, userId: string | null, updateData: Partial<Trip>) {
     const trip = await this.findOne(id, userId);
     Object.assign(trip, updateData);
     return this.tripRepository.save(trip);
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string | null) {
     const trip = await this.findOne(id, userId);
     await this.tripRepository.remove(trip);
     return { message: '行程已删除' };
@@ -90,7 +94,7 @@ export class TripsService {
 
   async addSpot(
     tripId: string,
-    userId: string,
+    userId: string | null,
     spotId: string,
     arriveDate?: Date,
     arriveTime?: string,
@@ -123,7 +127,7 @@ export class TripsService {
 
   async reorderSpots(
     tripId: string,
-    userId: string,
+    userId: string | null,
     spotOrder: { tripSpotId: string; order: number }[],
   ) {
     await this.findOne(tripId, userId);
@@ -135,7 +139,7 @@ export class TripsService {
     return { message: '顺序已更新' };
   }
 
-  async removeSpot(tripId: string, userId: string, tripSpotId: string) {
+  async removeSpot(tripId: string, userId: string | null, tripSpotId: string) {
     await this.findOne(tripId, userId);
 
     const tripSpot = await this.tripSpotRepository.findOne({ where: { id: tripSpotId } });

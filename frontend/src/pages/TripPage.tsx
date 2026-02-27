@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { tripService } from '../services/trip.service';
 
@@ -38,9 +38,9 @@ export default function TripPage() {
   };
 
   // 页面加载时获取行程列表
-  useState(() => {
+  useEffect(() => {
     loadTrips();
-  });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
